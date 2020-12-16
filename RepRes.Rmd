@@ -1,0 +1,56 @@
+---
+title: "RepRes"
+author: "Arnel"
+date: "12/16/2020"
+output: 
+        html_document:
+        keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## __Data Processing__
+
+We first download the data. We then read it into R and name it "storm".
+
+```{r}
+
+getdata = function(fileURL) {
+        if(!file.exists("./data")){dir.create("./data")}
+        
+        fileURL = fileURL
+        if(!file.exists("./data/dataset.csv.bz2")){
+                download.file(fileURL, destfile = "./data/dataset.csv.bz2")
+        }
+        
+}
+
+fileURL = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+
+getdata(fileURL)
+
+storm = read.csv("./data/dataset.csv.bz2")
+
+```
+
+We can check first the characteristics of our data.
+
+```{r}
+names(storm)
+
+cols = c("STATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG")
+storm[seq(1, 90000, by=10000), cols]
+
+```
+
+## __Results__
+We can also check for max values and see what event caused these.
+```{r}
+max(storm$FATALITIES)
+storm[which.max(storm$FATALITIES), cols]
+
+max(storm$PROPDMG)
+storm[which.max(storm$PROPDMG), cols]
+```
