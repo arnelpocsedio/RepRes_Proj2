@@ -7,16 +7,22 @@ output:
         keep_md: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setoptions, echo=TRUE, results='asis'}
+knitr:: opts_chunk$set(echo = TRUE, results = 'asis')
 ```
 
-## __Data Processing__
+## __FLOOD and TORNADO are the ultimate threat to the US population's health and economy.__
+
+### __Synopsis__
+We explore the NOAA Storm Database to study the risk associated with natural calamities. More information about the database can be found be in this [documentation][id]. We start by processing data to be amenable for analysis. This includes formatting the damages more precisely and correctly clasifying the 48 event types, among others. Based on the number of injuries and fatalities we report here that flood and tornado are the most pressing threat to the US population's health and economy. Overall, more than 138 million USD of damages were due to floods. Tornados on the other hand caused more than 96 thousand injuries and fatalities. Therefore, efforts should be made to try to minimize this risks. 
+
+[id]:https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf
+
+### __Data Processing__
 
 We first download the data. We then read it into R and name it "storm".
 
-```{r}
-
+```{r cache=TRUE}
 getdata = function(fileURL) {
         if(!file.exists("./data")){dir.create("./data")}
         
@@ -33,24 +39,185 @@ getdata(fileURL)
 
 storm = read.csv("./data/dataset.csv.bz2")
 
+dim(storm)
 ```
 
-We can check first the characteristics of our data.
+We check first the 37 variables in the data.
+
+:::: {style="display: flex;"}
+::: {}
+```{r}
+cat(paste0(1:13, ". ", names(storm)[1:13]), sep = "\n")
+```
+:::
+::: {}
+```{r}
+cat(paste0(14:25, ". ", names(storm)[14:25]), sep = "\n")
+```
+:::
+::: {}
+```{r}
+cat(paste0(26:37, ". ", names(storm)[26:37]), sep = "\n")
+```
+:::
+::::
+
+
+We also look at some events in some States with fatalities/injuries as well as those that incurred economic damages, both property and crops. 
 
 ```{r}
-names(storm)
+#select sample columns and rows to show
+cols = c("BGN_DATE" ,"STATE", "EVTYPE", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP",  "INJURIES", "FATALITIES")
+samplerows <- storm$PROPDMG>1 & storm$PROPDMGEXP == "M" & storm$CROPDMG>1 & storm$CROPDMGEXP == "M" &
+        storm$INJURIES>1 & storm$FATALITIES>1
 
-cols = c("STATE", "EVTYPE", "FATALITIES", "INJURIES", "PROPDMG")
-storm[seq(1, 90000, by=10000), cols]
+library(xtable)
+print(xtable(storm[samplerows, cols]), type = "html")
 
 ```
 
-## __Results__
-We can also check for max values and see what event caused these.
+
+We saw that the damages data in the example has letter "M"  in PROPDMGEXP or CROPDMGEXP which stands for millions. So the first row tells us that a winter storm in California devasted 5 million USD each in property and crop damages. So that we can compare more properly, we will convert the damage data into more exact values. In the [documentation][id], the letters: "K", "M" and "B" represent thousand, millions and billions respectively. For our purpose we will ignore unknown and unclear damage values. 
+
 ```{r}
-max(storm$FATALITIES)
-storm[which.max(storm$FATALITIES), cols]
+unique(storm$PROPDMGEXP)
+unique(storm$PROPDMGEXP)
 
-max(storm$PROPDMG)
-storm[which.max(storm$PROPDMG), cols]
+#we will convert B, M, K and H into multipliers
+storm$PROPDMGEXP2 = ifelse(storm$PROPDMGEXP == "B" | storm$PROPDMGEXP == "b", 1000000000,
+                           ifelse(storm$PROPDMGEXP == "M" | storm$PROPDMGEXP == "m", 1000000,
+                                  ifelse(storm$PROPDMGEXP == "K" | storm$PROPDMGEXP == "k", 1000,
+                                         ifelse(storm$PROPDMGEXP == "H" | storm$PROPDMGEXP == "h", 100,
+                                                NA 
+                                                )
+                                         )
+                                )
+                           )
+
+
+storm$CROPDMGEXP2 = ifelse(storm$CROPDMGEXP == "B" | storm$CROPDMGEXP == "b", 1000000000,
+                           ifelse(storm$CROPDMGEXP == "M" | storm$CROPDMGEXP == "m", 1000000,
+                                  ifelse(storm$CROPDMGEXP == "K" | storm$CROPDMGEXP == "k", 1000,
+                                         ifelse(storm$CROPDMGEXP == "H" | storm$CROPDMGEXP == "h", 100,
+                                                NA 
+                                                )
+                                         )
+                                )
+                           )
+
+#We create new column for damage data
+storm$PROPDMG2 = storm$PROPDMG*storm$PROPDMGEXP2
+storm$CROPDMG2 = storm$CROPDMG*storm$CROPDMGEXP2
+sum(is.na(storm$PROPDMG2))
+sum(is.na(storm$CROPDMG2))
+
+#we reassign NA into zero for the total damage computation
+storm$PROPDMG2[is.na(storm$PROPDMG2)] <- 0
+storm$CROPDMG2[is.na(storm$CROPDMG2)] <- 0
+storm$TOTALDMG = storm$PROPDMG2 + storm$CROPDMG2 
+
+storm$TOTAL_INJUR_FATAL = storm$INJURIES + storm$FATALITIES 
+
 ```
+
+For our purpose, we are only interested with the data on the effects of the different natural calamities on economic and popultion health damages. Thus, we create smaller subset of the data with relevant rows and columns, we call this storm2.
+
+```{r}
+#we select relevant columns only
+cols2 = c("BGN_DATE" ,"STATE", "EVTYPE", "PROPDMG2",  "CROPDMG2", "TOTALDMG", "INJURIES", "FATALITIES", "TOTAL_INJUR_FATAL")
+
+storm2 = storm[, cols2]
+names(storm2)[c(4:6,9)] = c("PROPERTY_DAMAGE", "CROP_DAMAGE", "TOTAL_DAMAGE", "TOTAL_INJURIES_FATALITIES")
+
+#we remove rows with no relevant data
+storm2 = storm2[storm2$TOTAL_DAMAGE>0 | storm2$TOTAL_INJURIES_FATALITIES>0,]
+
+# #in millions?
+# storm2$PROPERTY_DAMAGE = storm2$PROPERTY_DAMAGE/1000000
+# storm2$CROP_DAMAGE = storm2$CROP_DAMAGE/1000000
+
+#we also format the date column
+library(lubridate)
+storm2$BGN_DATE = mdy_hms(storm2$BGN_DATE)
+
+print(xtable(storm2[1:10,]), type = "html")
+```
+
+From the [documentation][id], we know that there are 48 event types. In our data there are more types so we group them properly into the 48.
+```{r}
+head(unique(storm2$EVTYPE))
+tail(unique(storm2$EVTYPE))
+
+EVTYPE985 = as.character(unique(storm2$EVTYPE))
+
+grep("LOW TIDE", storm2$EVTYPE)
+storm2[grep("LOW TIDE", storm2$EVTYPE),]
+
+#all lower caps
+storm2$EVTYPE2 = tolower(storm2$EVTYPE)
+storm2$EVTYPE2 = gsub("^ ", "", storm2$EVTYPE2)
+
+EVTYPE48 = c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", "Cold Wind Chill", 
+"Debris Flow", "Dense Fog", "Dense Smoke", "Drought", "Dust Devil", "Dust Storm",
+"Excessive Heat", "Extreme Cold Wind Chill", "Flash Flood", "Flood", "Frost Freeze",
+"Funnel Cloud", "Freezing Fog", "Hail", "Heat", "Heavy Rain", "Heavy Snow", "High Surf",
+"High Wind", "Hurricane Typhoon", "Ice Storm", "Lake-Effect Snow", "Lakeshore Flood",
+"Lightning", "Marine Hail", "Marine High Wind", "Marine Strong Wind", "Marine Thunderstorm Wind",
+"Rip Current", "Seiche", "Sleet", "Storm Surge Tide", "Strong Wind", "Thunderstorm Wind",
+"Tornado", "Tropical Depression", "Tropical Storm", "Tsunami", "Volcanic Ash", "Waterspout",
+"Wildfire", "Winter Storm", "Winter Weather")
+
+EVTYPE48 = tolower(EVTYPE48)
+
+library(stringdist)
+storm2$EVTYPE3A = amatch(storm2$EVTYPE2, EVTYPE48, maxDist = 1)
+sum(is.na(storm2$EVTYPE3A))
+
+storm2$EVTYPE3B = amatch(storm2$EVTYPE2, EVTYPE48, maxDist = 10)
+sum(is.na(storm2$EVTYPE3B))
+
+setdiff(storm2$EVTYPE3B, storm2$EVTYPE3A)
+
+
+unique(storm2[is.na(storm2$EVTYPE3),c("EVTYPE2", "EVTYPE3" )])$EVTYPE2
+
+storm2[storm2$EVTYPE == " TSTM WIND",c("EVTYPE", "EVTYPE3" )]
+```
+
+
+### __Results__
+The objective of this study is to find out the most devastating natural calamities. We can check first the calamity that caused the most harm through the years.
+
+```{r}
+max(storm2$PROPERTY_DAMAGE)
+max(storm2$CROP_DAMAGE)
+max(storm2$INJURIES)
+max(storm2$FATALITIES)
+
+print(xtable(storm2[c(which.max(storm2$PROPERTY_DAMAGE), which.max(storm2$CROP_DAMAGE), which.max(storm2$INJURIES), which.max(storm2$FATALITIES)),]), type = "html")
+
+```
+In terms of damages, the flood in California on 2006 caused the greatest damage at more than 1 billion USD while the river flood in Illinois on 1993 caused the most crop damage at about 5 million USD. The tornado in Texas on 1979 lead to most injuries, that is, 1742 people. More devasting is the heat wave(?) in Illinois on 1995 which claimed 583 lives.
+
+We now check the cumulative effects of these natural calamities.
+```{r r figures-side, fig.show="hold", out.width="80%"}
+cum_propdmg = aggregate(PROPERTY_DAMAGE ~ EVENT_TYPE, data = storm2, function(x) sum(x, na.rm = TRUE))
+cum_propdmg2 = cum_propdmg[order(cum_propdmg$PROPERTY_DAMAGE, decreasing = TRUE)[1:10],] 
+cum_propdmg2$EVENT_TYPE = as.character(cum_propdmg2$EVENT_TYPE)
+
+par(mar =c(4,8,2,2))
+barplot(PROPERTY_DAMAGE/1000000000 ~ EVENT_TYPE, data = cum_propdmg2, las = 2, cex.names =0.8, 
+        horiz = TRUE,main = "Property damages in the US due extreme wheather events", ylab ="",
+        xlab = "Damages in million USD")
+
+cum_cropdmg = aggregate(CROP_DAMAGE ~ EVENT_TYPE, data = storm2, function(x) sum(x, na.rm = TRUE))
+cum_cropdmg2 = cum_cropdmg[order(cum_cropdmg$CROP_DAMAGE, decreasing = TRUE)[1:10],] 
+cum_cropdmg2$EVENT_TYPE = as.character(cum_cropdmg2$EVENT_TYPE)
+
+barplot(CROP_DAMAGE/1000000000 ~ EVENT_TYPE, data = cum_cropdmg2, las = 2, cex.names =0.8, 
+        horiz = TRUE,main = "Crop damages in the US due extreme wheather events", ylab ="",
+        xlab = "Damages in million USD")
+
+
+```
+
