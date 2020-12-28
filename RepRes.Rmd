@@ -20,6 +20,7 @@ We explore the NOAA Storm Database to study the risk associated with natural cal
 
 ### __Data Processing__
 
+####Getting the data and quick overview
 We first download the data. We then read it into R and name it "storm".
 
 ```{r cache=TRUE}
@@ -37,7 +38,7 @@ fileURL = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.
 
 getdata(fileURL)
 
-storm = read.csv("./data/dataset.csv.bz2")
+storm = read.csv("./data/dataset.csv.bz2", stringsAsFactors = FALSE)
 
 dim(storm)
 ```
@@ -79,6 +80,7 @@ print(xtable(storm[samplerows, cols]), type = "html")
 
 We saw that the damages data in the example has letter "M"  in PROPDMGEXP or CROPDMGEXP which stands for millions. So the first row tells us that a winter storm in California devasted 5 million USD each in property and crop damages. So that we can compare more properly, we will convert the damage data into more exact values. In the [documentation][id], the letters: "K", "M" and "B" represent thousand, millions and billions respectively. For our purpose we will ignore unknown and unclear damage values. 
 
+####Correcting data on "damages"
 ```{r}
 unique(storm$PROPDMGEXP)
 unique(storm$PROPDMGEXP)
@@ -120,6 +122,7 @@ storm$TOTAL_INJUR_FATAL = storm$INJURIES + storm$FATALITIES
 
 ```
 
+####Data subsetting
 For our purpose, we are only interested with the data on the effects of the different natural calamities on economic and popultion health damages. Thus, we create smaller subset of the data with relevant rows and columns, we call this storm2.
 
 ```{r}
@@ -132,9 +135,6 @@ names(storm2)[c(4:6,9)] = c("PROPERTY_DAMAGE", "CROP_DAMAGE", "TOTAL_DAMAGE", "T
 #we remove rows with no relevant data
 storm2 = storm2[storm2$TOTAL_DAMAGE>0 | storm2$TOTAL_INJURIES_FATALITIES>0,]
 
-# #in millions?
-# storm2$PROPERTY_DAMAGE = storm2$PROPERTY_DAMAGE/1000000
-# storm2$CROP_DAMAGE = storm2$CROP_DAMAGE/1000000
 
 #we also format the date column
 library(lubridate)
@@ -143,81 +143,387 @@ storm2$BGN_DATE = mdy_hms(storm2$BGN_DATE)
 print(xtable(storm2[1:10,]), type = "html")
 ```
 
-From the [documentation][id], we know that there are 48 event types. In our data there are more types so we group them properly into the 48.
+####Processing the "event types"
+From the [documentation][id], we know that there are 48 event types. In our data there are more types so we group them properly into the 48. To do this we standarize the strings of the event types and we utilize regular expression in R.
+
 ```{r}
+length(unique(storm2$EVTYPE)) #more than 48 event types
 head(unique(storm2$EVTYPE))
 tail(unique(storm2$EVTYPE))
 
-EVTYPE985 = as.character(unique(storm2$EVTYPE))
 
-grep("LOW TIDE", storm2$EVTYPE)
-storm2[grep("LOW TIDE", storm2$EVTYPE),]
-
-#all lower caps
+#convert strings to all lower caps, no space in at the start
 storm2$EVTYPE2 = tolower(storm2$EVTYPE)
-storm2$EVTYPE2 = gsub("^ ", "", storm2$EVTYPE2)
 
-EVTYPE48 = c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", "Cold Wind Chill", 
-"Debris Flow", "Dense Fog", "Dense Smoke", "Drought", "Dust Devil", "Dust Storm",
-"Excessive Heat", "Extreme Cold Wind Chill", "Flash Flood", "Flood", "Frost Freeze",
-"Funnel Cloud", "Freezing Fog", "Hail", "Heat", "Heavy Rain", "Heavy Snow", "High Surf",
-"High Wind", "Hurricane Typhoon", "Ice Storm", "Lake-Effect Snow", "Lakeshore Flood",
-"Lightning", "Marine Hail", "Marine High Wind", "Marine Strong Wind", "Marine Thunderstorm Wind",
-"Rip Current", "Seiche", "Sleet", "Storm Surge Tide", "Strong Wind", "Thunderstorm Wind",
-"Tornado", "Tropical Depression", "Tropical Storm", "Tsunami", "Volcanic Ash", "Waterspout",
-"Wildfire", "Winter Storm", "Winter Weather")
+#remove spaces and "/"
+storm2$EVTYPE2 = gsub("[[:space:]]", "", storm2$EVTYPE2)
+storm2$EVTYPE2 = gsub("/", "", storm2$EVTYPE2)
 
-EVTYPE48 = tolower(EVTYPE48)
+#rename tstm as thunderstorm
+storm2$EVTYPE2 = gsub("tstm", "thunderstorm", storm2$EVTYPE2)
 
-library(stringdist)
-storm2$EVTYPE3A = amatch(storm2$EVTYPE2, EVTYPE48, maxDist = 1)
-sum(is.na(storm2$EVTYPE3A))
+#check new strings of the event types
+head(unique(storm2$EVTYPE2))
+tail(unique(storm2$EVTYPE2))
 
-storm2$EVTYPE3B = amatch(storm2$EVTYPE2, EVTYPE48, maxDist = 10)
-sum(is.na(storm2$EVTYPE3B))
-
-setdiff(storm2$EVTYPE3B, storm2$EVTYPE3A)
-
-
-unique(storm2[is.na(storm2$EVTYPE3),c("EVTYPE2", "EVTYPE3" )])$EVTYPE2
-
-storm2[storm2$EVTYPE == " TSTM WIND",c("EVTYPE", "EVTYPE3" )]
 ```
 
+After a bit of standardization, we can now search for key words to classify the different event types
+```{r}
+#hail and marine hail, Events 1 and 2
+unique(grep(".*hail.*", storm2$EVTYPE2, value = TRUE)) #searching for "hail" in the EVTYPE2 variable
+hails = unique(grep(".*hail.*", storm2$EVTYPE2, value = TRUE))
+hails = hails[c(1,4:12,14,16:21)] #remove those with more than 1 event or ambigous
+ 
+#sleet and ice storm, E3 and E4
+unique(grep(".*sleet.*", storm2$EVTYPE2, value = TRUE))
+sleets = unique(grep(".*sleet.*", storm2$EVTYPE2, value = TRUE))
+sleets = sleets[c(1,4)]
 
+unique(grep(".*ice.*storm.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*freez.*rain.*", storm2$EVTYPE2, value = TRUE))
+ice1 = unique(grep(".*ice.*storm.*", storm2$EVTYPE2, value = TRUE))
+fzrain = unique(grep(".*freez.*rain.*", storm2$EVTYPE2, value = TRUE))
+icestorms = c(ice1[c(2,4:6)], fzrain[c(1,2,5,7)]) #"freezing rain" is also called "ice storm"
+
+#seiche E5
+unique(grep(".*seiche.*", storm2$EVTYPE2, value = TRUE)) #one unique value, need  not to be corrected
+
+#blizzard E6
+unique(grep(".*blizzard.*", storm2$EVTYPE2, value = TRUE))
+blizzards = unique(grep(".*blizzard.*", storm2$EVTYPE2, value = TRUE))
+blizzards = blizzards[c(1,2)]
+
+#avalanche E7
+unique(grep(".*avalanche.*", storm2$EVTYPE2, value = TRUE))
+
+#heavy snow and lake-effect snow, E8 and E9
+unique(grep(".*snow.*", storm2$EVTYPE2, value = TRUE))
+snows = unique(grep(".*snow.*", storm2$EVTYPE2, value = TRUE))
+heavysnows = snows[c(1:3,7:9,18,19,21,24,26,30,39,41,47)]
+lakesnows = grep(".*lake.*", snows, value = TRUE)
+
+#frost freeze E10
+unique(grep(".*frost.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*freeze.*", storm2$EVTYPE2, value = TRUE))
+frosts = unique(grep(".*frost.*", storm2$EVTYPE2, value = TRUE))
+freezes = unique(grep(".*freeze.*", storm2$EVTYPE2, value = TRUE))
+frostfreezes = c(frosts, freezes)
+frostfreezes = unique(frostfreezes)
+
+#winter weather E11
+unique(grep(".*winter.*", storm2$EVTYPE2, value = TRUE))
+winterweathers = unique(grep(".*winter.*", storm2$EVTYPE2, value = TRUE))
+winterweathers = winterweathers[c(1,3,7)]
+
+#heat and excessive heat, E12 and E13
+unique(grep(".*heat.*", storm2$EVTYPE2, value = TRUE))
+heat1 = unique(grep(".*heat.*", storm2$EVTYPE2, value = TRUE))
+heats = heat1[c(1,3,8)] 
+exheats = heat1[c(2,4,6,9)] 
+
+#drought E14
+unique(grep(".*drought.*", storm2$EVTYPE2, value = TRUE))
+
+#wildfire E15
+unique(grep(".*wild.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*fire.*", storm2$EVTYPE2, value = TRUE))
+wildfires = unique(grep(".*fire.*", storm2$EVTYPE2, value = TRUE))[c(1:3,5:8)]
+
+
+#floods E16, E17, E18 and E19
+unique(grep(".*flood.*", storm2$EVTYPE2, value = TRUE))
+floods1 = unique(grep(".*flood.*", storm2$EVTYPE2, value = TRUE))
+
+flashfloods = grep(".*flash.*",floods1, value = TRUE)
+flashfloods
+flashfloods = flashfloods[c(2,3,5:7,9:14)]
+
+coastalfloods = grep(".*coastal.*",floods1, value = TRUE)
+coastalfloods
+coastalfloods = c(coastalfloods[c(1,3,5)],"erosioncstl flood")
+
+lakefloods = grep(".*lake.*",floods1, value = TRUE)
+lakefloods
+
+floods = floods1[!(floods1 %in% c(flashfloods, coastalfloods, lakefloods))]
+floods
+floods = floods[c(1,3,6:16,18:20,25,28,29)]
+
+#tornado E20
+unique(grep(".*tornado.*", storm2$EVTYPE2, value = TRUE))
+tornadoes = unique(grep(".*tornado.*", storm2$EVTYPE2, value = TRUE))
+tornadoes = tornadoes[c(1,2,6:10)]
+
+#tsunami E21
+unique(grep(".*tsunami.*", storm2$EVTYPE2, value = TRUE))
+
+#waterspout E22
+unique(grep(".*water.*spout.*", storm2$EVTYPE2, value = TRUE))
+waterspouts = unique(grep(".*water.*spout.*", storm2$EVTYPE2, value = TRUE))
+waterspouts = waterspouts[c(1,3)]
+
+#surf E23
+unique(grep(".*surf.*", storm2$EVTYPE2, value = TRUE))
+highsurfs = unique(grep(".*surf.*", storm2$EVTYPE2, value = TRUE))
+highsurfs = highsurfs[c(2,3,5,7:10)]
+
+#rip current E24
+unique(grep(".*rip.*current.*", storm2$EVTYPE2, value = TRUE))
+ripcurrents = unique(grep(".*rip.*current.*", storm2$EVTYPE2, value = TRUE))
+ripcurrents = ripcurrents[c(1,3)]
+
+#dense fog and freezing fog E25 and E26
+unique(grep(".*fog.*", storm2$EVTYPE2, value = TRUE))
+
+#wind E27 to E34
+unique(grep(".*wind.*", storm2$EVTYPE2, value = TRUE))
+winds = unique(grep(".*wind.*", storm2$EVTYPE2, value = TRUE))
+
+thunderstormwinds = grep(".*thunder.*", winds, value = TRUE)
+thunderstormwinds 
+thunderstormwinds = thunderstormwinds[c(1,2,6:8,11:15,17:34,37,39:44,46,47)]
+
+highwinds = grep(".*high.*", winds, value = TRUE)
+highwinds
+highwinds = highwinds[c(2,3,5,8,15:20)]
+
+strongwinds = grep(".*strong.*", winds, value = TRUE)
+strongwinds
+strongwinds = strongwinds[c(1:3)]
+
+grep(".*cold.*", winds, value = TRUE)
+grep(".*chill.*", winds, value = TRUE)
+coldwindchills = grep(".*cold.*", winds, value = TRUE)[c(2,4)]
+
+grep(".*extreme.*", winds, value = TRUE)
+extremecoldwindchills = grep(".*extreme.*", winds, value = TRUE)
+
+#marine high/strong/thunderstorm winds
+grep(".*marine.*", winds, value = TRUE)
+
+
+#lightning E35
+unique(grep(".*lightning.*", storm2$EVTYPE2, value = TRUE))
+lightnings = unique(grep(".*lightning.*", storm2$EVTYPE2, value = TRUE))
+lightnings = lightnings[c(1,7,10:12)]
+
+#dust E36 and E37
+unique(grep(".*dust.*", storm2$EVTYPE2, value = TRUE))
+
+#rain E38
+unique(grep(".*rain.*", storm2$EVTYPE2, value = TRUE))
+rains = unique(grep(".*rain.*", storm2$EVTYPE2, value = TRUE))
+heavyrains = rains[c(1,2,8,9,12,15,18,25,27,29)]
+
+#debris flow E39
+unique(grep(".*debris.*flow.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*debris.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".flow.*", storm2$EVTYPE2, value = TRUE))
+
+#dense smoke E40
+unique(grep(".*smoke.*", storm2$EVTYPE2, value = TRUE))
+
+#funnel cloud E41
+unique(grep(".*funnel.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*cloud.*", storm2$EVTYPE2, value = TRUE))
+
+#volcanic ash E42
+unique(grep(".*volcan.*ash.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*volcan.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*ash.*", storm2$EVTYPE2, value = TRUE))
+
+#other "storms"
+storms = unique(grep(".*storm.*", storm2$EVTYPE2, value = TRUE))
+
+#winter storm E43
+winterstorms = grep(".*winter.*", storms, value = TRUE)
+winterstorms
+winterstorms = winterstorms[c(1,3)]
+
+#tropical storm E44
+tropicalstorms = grep(".*tropical.*", storms, value = TRUE)
+tropicalstorms
+
+#storm surge tide E45
+grep(".*tid.*", storms, value = TRUE)
+grep(".*surge.*", storms, value = TRUE)
+stormsurgetides = grep(".*surge.*", storms, value = TRUE)
+
+#hurricane typhoon E46
+unique(grep(".*hurricane.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*typhoon.*", storm2$EVTYPE2, value = TRUE))
+hurricanes = c(unique(grep(".*hurricane.*", storm2$EVTYPE2, value = TRUE)), "typhoon")
+
+#tropical depression E47
+unique(grep(".*tropical.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*depression.*", storm2$EVTYPE2, value = TRUE))
+tropicaldepressions = unique(grep(".*tropical.*", storm2$EVTYPE2, value = TRUE))
+
+#astronomical low tide E48
+unique(grep(".*astronomical.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*low.*", storm2$EVTYPE2, value = TRUE))
+unique(grep(".*tid.*", storm2$EVTYPE2, value = TRUE))
+
+
+```
+
+After we group the different event type, we now give them a common name.
+```{r}
+#replace
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% hails, "hail", storm2$EVTYPE2) #1
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% sleets, "sleet", storm2$EVTYPE2) #2
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% icestorms, "icestorm", storm2$EVTYPE2) #3
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% blizzards, "blizzard", storm2$EVTYPE2) #4
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% heavysnows, "heavysnow", storm2$EVTYPE2) #5
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% lakesnows, "lakeeffectsnow", storm2$EVTYPE2) #6
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% frostfreezes, "frostfreezes", storm2$EVTYPE2) #7
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% winterweathers, "winterweather", storm2$EVTYPE2) #8
+
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% heats, "heat", storm2$EVTYPE2) #9
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% exheats, "excessiveheat", storm2$EVTYPE2) #10
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% wildfires, "wildfire", storm2$EVTYPE2) #11
+
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% flashfloods, "flashflood", storm2$EVTYPE2) #12
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% coastalfloods, "coastalflood", storm2$EVTYPE2) #13
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% lakefloods, "lakeshoreflood", storm2$EVTYPE2) #14
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% floods, "flood", storm2$EVTYPE2) #15
+
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% tornadoes, "tornado", storm2$EVTYPE2) #16
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% waterspouts, "waterspout", storm2$EVTYPE2) #17
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% highsurfs, "highsurf", storm2$EVTYPE2) #18
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% ripcurrents, "ripcurrent", storm2$EVTYPE2) #19
+
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% thunderstormwinds, "thunderstormwind", storm2$EVTYPE2) #20
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% highwinds, "highwinds", storm2$EVTYPE2) #21
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% strongwinds, "strongwind", storm2$EVTYPE2) #22
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% coldwindchills, "coldwindchill", storm2$EVTYPE2) #23
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% extremecoldwindchills, "extremecoldwindchill",
+                        storm2$EVTYPE2) #24
+
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% lightnings, "lightning", storm2$EVTYPE2) #25
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% heavyrains, "heavyrain", storm2$EVTYPE2) #26
+
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% winterstorms, "winterstorm", storm2$EVTYPE2) #27
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% tropicalstorms, "tropicalstorm", storm2$EVTYPE2) #28
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% stormsurgetides, "stormsurgetide", storm2$EVTYPE2) #29
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% hurricanes, "hurricanetyphoon", storm2$EVTYPE2) #30
+storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% tropicaldepressions, "tropicaldepression", storm2$EVTYPE2) #31
+
+#32 marine hail; 33 seiche; 34 avalanche; 35 drought; 36 tsunami; 37 dense fog; 38 freezing fog
+#39 marine high wind; 40 marine strong wind; 41 marine thunderstorm winds
+#42 dust devil; 43 dust storm; 44 debris flow; 45 dense smoke; 46 funnel cloud
+#47 volcanic ash; 48 astronomical low tide; 
+
+```
+
+Finally we create the final dataset and call it "storm3". We use partial matching to consider minor typhographical errors. We first load the names of the 48 event types. 
+```{r}
+
+EVTYPE48 = c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", "Cold Wind Chill", 
+             "Debris Flow", "Dense Fog", "Dense Smoke", "Drought", "Dust Devil", "Dust Storm",
+             "Excessive Heat", "Extreme Cold Wind Chill", "Flash Flood", "Flood", "Frost Freeze",
+             "Funnel Cloud", "Freezing Fog", "Hail", "Heat", "Heavy Rain", "Heavy Snow", "High Surf",
+             "High Wind", "Hurricane Typhoon", "Ice Storm", "Lake Effect Snow", "Lakeshore Flood",
+             "Lightning", "Marine Hail", "Marine High Wind", "Marine Strong Wind", 
+             "Marine Thunderstorm Wind", "Rip Current", "Seiche", "Sleet", "Storm Surge Tide", 
+             "Strong Wind", "Thunderstorm Wind", "Tornado", "Tropical Depression", "Tropical Storm",
+             "Tsunami", "Volcanic Ash", "Waterspout", "Wildfire", "Winter Storm", "Winter Weather")
+
+EVTYPE48B = tolower(EVTYPE48) #lowercase
+EVTYPE48B = gsub("[[:space:]]", "", EVTYPE48) #no spaces
+
+library(stringdist)
+storm2$EVTYPE3 = amatch(storm2$EVTYPE2, EVTYPE48B, maxDist = 7) #string difference of at most 3
+
+#use correct names of the events
+EVTYPE48 = cbind(NCODE = 1:48, EVTYPE48) 
+storm3 = merge(storm2, EVTYPE48, by.x = "EVTYPE3", by.y = "NCODE", all.x = TRUE, sort = FALSE)
+
+sum(is.na(storm3$EVTYPE48)/254331)*100
+
+#We were not able to classify less than 0.5% of the events distinctly into 48 types. For our purpose, this is good enough to draw some summaries. Majority of these are likely multiple events observed all together within the same time period. 
+
+storm3$EVTYPE2 = NULL
+storm3$EVTYPE3 = NULL
+
+names(storm3)[10] = "EVENT_TYPE"
+```
+
+    
 ### __Results__
 The objective of this study is to find out the most devastating natural calamities. We can check first the calamity that caused the most harm through the years.
 
 ```{r}
-max(storm2$PROPERTY_DAMAGE)
-max(storm2$CROP_DAMAGE)
-max(storm2$INJURIES)
-max(storm2$FATALITIES)
+max(storm3$PROPERTY_DAMAGE)
+max(storm3$CROP_DAMAGE)
+max(storm3$INJURIES)
+max(storm3$FATALITIES)
 
-print(xtable(storm2[c(which.max(storm2$PROPERTY_DAMAGE), which.max(storm2$CROP_DAMAGE), which.max(storm2$INJURIES), which.max(storm2$FATALITIES)),]), type = "html")
+storm3B = storm3[c(which.max(storm3$PROPERTY_DAMAGE), which.max(storm3$CROP_DAMAGE), which.max(storm3$INJURIES), which.max(storm3$FATALITIES)),]
 
-```
-In terms of damages, the flood in California on 2006 caused the greatest damage at more than 1 billion USD while the river flood in Illinois on 1993 caused the most crop damage at about 5 million USD. The tornado in Texas on 1979 lead to most injuries, that is, 1742 people. More devasting is the heat wave(?) in Illinois on 1995 which claimed 583 lives.
+storm3B$"PROPERTY_DAMAGE (millions)" = storm3B$PROPERTY_DAMAGE/1000000
+storm3B$"CROP_DAMAGE (millions)" = storm3B$CROP_DAMAGE/1000000
+storm3B$"TOTAL_DAMAGE (millions)" = storm3B$TOTAL_DAMAGE/1000000
 
-We now check the cumulative effects of these natural calamities.
-```{r r figures-side, fig.show="hold", out.width="80%"}
-cum_propdmg = aggregate(PROPERTY_DAMAGE ~ EVENT_TYPE, data = storm2, function(x) sum(x, na.rm = TRUE))
-cum_propdmg2 = cum_propdmg[order(cum_propdmg$PROPERTY_DAMAGE, decreasing = TRUE)[1:10],] 
-cum_propdmg2$EVENT_TYPE = as.character(cum_propdmg2$EVENT_TYPE)
-
-par(mar =c(4,8,2,2))
-barplot(PROPERTY_DAMAGE/1000000000 ~ EVENT_TYPE, data = cum_propdmg2, las = 2, cex.names =0.8, 
-        horiz = TRUE,main = "Property damages in the US due extreme wheather events", ylab ="",
-        xlab = "Damages in million USD")
-
-cum_cropdmg = aggregate(CROP_DAMAGE ~ EVENT_TYPE, data = storm2, function(x) sum(x, na.rm = TRUE))
-cum_cropdmg2 = cum_cropdmg[order(cum_cropdmg$CROP_DAMAGE, decreasing = TRUE)[1:10],] 
-cum_cropdmg2$EVENT_TYPE = as.character(cum_cropdmg2$EVENT_TYPE)
-
-barplot(CROP_DAMAGE/1000000000 ~ EVENT_TYPE, data = cum_cropdmg2, las = 2, cex.names =0.8, 
-        horiz = TRUE,main = "Crop damages in the US due extreme wheather events", ylab ="",
-        xlab = "Damages in million USD")
-
+print(xtable(storm3B[,c(1,2,10:13,7:9)]), type = "html")
 
 ```
 
+
+In terms of damages, the flood in California on 2006 caused the greatest damage at about 115 billion USD while the ice storm in Mississippi on 1994 caused the most crop damage at about 5 billion USD. The tornado in Texas on 1979 lead to most injuries, that is, 1700 people. More devasting is the heat wave in Illinois on 1995 which claimed 583 lives.
+
+We now check the cumulative effects of these natural calamities. We look at first economic damages.
+```{r}
+cumul_propdmg = aggregate(PROPERTY_DAMAGE ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
+cumul_cropdmg = aggregate(CROP_DAMAGE ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
+cumul_totaldmg = aggregate(TOTAL_DAMAGE ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
+
+cumul_dmg = merge(cumul_propdmg, cumul_cropdmg, by = "EVENT_TYPE")
+cumul_dmg = merge(cumul_dmg, cumul_totaldmg, by = "EVENT_TYPE")
+
+cumul_dmg2 = cumul_dmg[order(cumul_dmg$TOTAL_DAMAGE, decreasing = TRUE)[1:10],1:3] #top ten only
+
+library(tidyr)
+cumul_dmg2 = gather(cumul_dmg2, DAMAGE_TYPE, DAMAGE, PROPERTY_DAMAGE:CROP_DAMAGE, factor_key=TRUE)
+
+library(ggplot2)
+p1 = ggplot(data = cumul_dmg2, aes(x = EVENT_TYPE, y = DAMAGE/1000000, fill = DAMAGE_TYPE)) + 
+    geom_bar(stat = 'identity') + coord_flip()
+p1 = p1 + labs(title = "Ten most damaging natural calamities in the US", 
+    y = "Damage in millions USD", x = "Event type")
+p1 = p1 + geom_text(aes(label=round(DAMAGE/1000000)), size=2,
+                    position = position_dodge(width = 0.5), hjust = -0.1)
+p1
+
+```
+We see that floods caused the most economic damage overall at about 145 billion USD. This is followed by Hurricane or typhoon (~ 85 billion USD) and tornado (almost 57 billion USD). In terms of crop damage, drought contributed the most at almost 14 billion USD.
+
+Next, we look at injuries and fatalities.
+```{r figures-side, fig.show="hold", out.width="80%"}
+cumul_injury = aggregate(INJURIES ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
+cumul_fatality = aggregate(FATALITIES ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
+
+cumul_injury2 = cumul_injury[order(cumul_injury$INJURIES, decreasing = TRUE)[1:10],] #top ten only
+cumul_fatality2 = cumul_fatality[order(cumul_fatality$FATALITIES, decreasing = TRUE)[1:10],] #top ten only
+
+
+p2 = ggplot(data = cumul_injury2, aes(x = EVENT_TYPE, y = INJURIES)) + 
+    geom_bar(stat = 'identity') + coord_flip()
+p2 = p2 + labs(title = "Top 10 natural calamities that caused the most injuries in the US", 
+    y = "Count", x = "Event type")
+p2 = p2 + geom_text(aes(label=INJURIES), size=2,
+                    position = position_dodge(width = 0.5), hjust = -0.1)
+p2
+
+
+p3 = ggplot(data = cumul_fatality2, aes(x = EVENT_TYPE, y = FATALITIES)) + 
+    geom_bar(stat = 'identity') + coord_flip()
+p3 = p3 + labs(title = "Top 10 natural calamities that caused the most deaths in the US", 
+    y = "Count", x = "Event type")
+p3 = p3 + geom_text(aes(label=FATALITIES), size=2,
+                    position = position_dodge(width = 0.5), hjust = -0.1)
+p3
+
+```
+ In general, tornadoes injured more people than any other storm event. It recorded more than 91 thousand injuries since 1950 upt 2011. In far seconds and thirds are thunderstorm winds (~9500) and floods (~7900). Similarly tornadoes killed a lot of people, that is, 5638. This is followed by heat waves (3132 total for heat and excessive heat)
