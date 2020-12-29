@@ -11,22 +11,27 @@ output:
 ```r
 knitr:: opts_chunk$set(echo = TRUE, results = 'asis', message = FALSE, warning = FALSE)
 ```
-
 ## __FLOODS and TORNADOES are the ultimate threat to the US population's health and economy.__
+&nbsp;  
+&nbsp;  
 
-### __Synopsis__
-We explore the NOAA Storm Database to study the risk associated with natural calamities. More information about the database can be found be in this [documentation][id]. We start by processing data to be amenable for analysis. This includes formatting the damages more precisely and correctly clasifying the 48 event types, among others. Based on the amount of damages (USD) and number of injuries and fatalities, we report here that floods and tornadoes are the most pressing threat to the US population's health and economy. Overall, more than 150 billion USD of damages were due to floods. Tornados on the other hand caused more than 91 thousand injuries and more than 5 thousand fatalities. Therefore, efforts should be made to try to minimize this risks. 
+### __Synopsis__  
 
-[id]:https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf
+We explore the 1950 to 2011 data of the US NOAA Storm Database to study the risk associated with natural calamities. More information about the database can be found be in this [documentation][id]. We start by processing data to be amenable for analysis. This includes formatting the damages more precisely and correctly clasifying the 48 event types, among others. Based on the amount of damages (USD) and number of injuries and fatalities, we report here that floods and tornadoes are the most pressing threat to the US population's health and economy. Overall, more than 150 billion USD of damages were due to floods. Tornados on the other hand caused more than 91 thousand injuries and more than 5 thousand fatalities. Therefore, efforts should be made to try to minimize this risks.   
 
-### __Data Processing__
+[id]:https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf   
+&nbsp;  
+&nbsp;  
 
-<font size="4.5"> _Getting the data and quick overview_</font> 
+### __Data Processing__  
+&nbsp;  
+
+<font size="4.5"> _Getting the data and quick overview_</font>   
 
 We first download the data. We then read it into R and name it "storm".
 
-
 ```r
+#function to download the data
 getdata = function(fileURL) {
         if(!file.exists("./data")){dir.create("./data")}
         
@@ -39,81 +44,45 @@ getdata = function(fileURL) {
 
 fileURL = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
 
-getdata(fileURL)
+getdata(fileURL) #download the data
 
-storm = read.csv("./data/dataset.csv.bz2", stringsAsFactors = FALSE)
+storm = read.csv("./data/dataset.csv.bz2", stringsAsFactors = FALSE) #read the data
 
-dim(storm)
+dim(storm) #check dimensions
 ```
 
 [1] 902297     37
-
-We check first the 37 variables in the data.
-
-:::: {style="display: flex;"}
-::: {}
+  
+We check first the 37 variables in the data.  
+   
 
 ```r
-cat(paste0(1:13, ". ", names(storm)[1:13]), sep = "\n")
+library(xtable)
+print(xtable(matrix(c(names(storm),"",""), 13, 3)), type = "html")
 ```
 
-1. STATE__
-2. BGN_DATE
-3. BGN_TIME
-4. TIME_ZONE
-5. COUNTY
-6. COUNTYNAME
-7. STATE
-8. EVTYPE
-9. BGN_RANGE
-10. BGN_AZI
-11. BGN_LOCATI
-12. END_DATE
-13. END_TIME
-:::
-::: {}
+<!-- html table generated in R 3.6.2 by xtable 1.8-4 package -->
+<!-- Tue Dec 29 15:26:43 2020 -->
+<table border=1>
+<tr> <th>  </th> <th> 1 </th> <th> 2 </th> <th> 3 </th>  </tr>
+  <tr> <td align="right"> 1 </td> <td> STATE__ </td> <td> COUNTY_END </td> <td> CROPDMG </td> </tr>
+  <tr> <td align="right"> 2 </td> <td> BGN_DATE </td> <td> COUNTYENDN </td> <td> CROPDMGEXP </td> </tr>
+  <tr> <td align="right"> 3 </td> <td> BGN_TIME </td> <td> END_RANGE </td> <td> WFO </td> </tr>
+  <tr> <td align="right"> 4 </td> <td> TIME_ZONE </td> <td> END_AZI </td> <td> STATEOFFIC </td> </tr>
+  <tr> <td align="right"> 5 </td> <td> COUNTY </td> <td> END_LOCATI </td> <td> ZONENAMES </td> </tr>
+  <tr> <td align="right"> 6 </td> <td> COUNTYNAME </td> <td> LENGTH </td> <td> LATITUDE </td> </tr>
+  <tr> <td align="right"> 7 </td> <td> STATE </td> <td> WIDTH </td> <td> LONGITUDE </td> </tr>
+  <tr> <td align="right"> 8 </td> <td> EVTYPE </td> <td> F </td> <td> LATITUDE_E </td> </tr>
+  <tr> <td align="right"> 9 </td> <td> BGN_RANGE </td> <td> MAG </td> <td> LONGITUDE_ </td> </tr>
+  <tr> <td align="right"> 10 </td> <td> BGN_AZI </td> <td> FATALITIES </td> <td> REMARKS </td> </tr>
+  <tr> <td align="right"> 11 </td> <td> BGN_LOCATI </td> <td> INJURIES </td> <td> REFNUM </td> </tr>
+  <tr> <td align="right"> 12 </td> <td> END_DATE </td> <td> PROPDMG </td> <td>  </td> </tr>
+  <tr> <td align="right"> 13 </td> <td> END_TIME </td> <td> PROPDMGEXP </td> <td>  </td> </tr>
+   </table>
+&nbsp;  
 
-```r
-cat(paste0(14:25, ". ", names(storm)[14:25]), sep = "\n")
-```
-
-14. COUNTY_END
-15. COUNTYENDN
-16. END_RANGE
-17. END_AZI
-18. END_LOCATI
-19. LENGTH
-20. WIDTH
-21. F
-22. MAG
-23. FATALITIES
-24. INJURIES
-25. PROPDMG
-:::
-::: {}
-
-```r
-cat(paste0(26:37, ". ", names(storm)[26:37]), sep = "\n")
-```
-
-26. PROPDMGEXP
-27. CROPDMG
-28. CROPDMGEXP
-29. WFO
-30. STATEOFFIC
-31. ZONENAMES
-32. LATITUDE
-33. LONGITUDE
-34. LATITUDE_E
-35. LONGITUDE_
-36. REMARKS
-37. REFNUM
-:::
-::::
-
-
-We also look at some events in some States with fatalities/injuries as well as those that incurred economic damages, both property and crops. 
-
+  
+We also look at some events in some States with fatalities/injuries as well as those that incurred economic damages, both property and crops.   
 
 ```r
 #select sample columns and rows to show
@@ -126,7 +95,7 @@ print(xtable(storm[samplerows, cols]), type = "html")
 ```
 
 <!-- html table generated in R 3.6.2 by xtable 1.8-4 package -->
-<!-- Tue Dec 29 13:26:38 2020 -->
+<!-- Tue Dec 29 15:26:43 2020 -->
 <table border=1>
 <tr> <th>  </th> <th> BGN_DATE </th> <th> STATE </th> <th> EVTYPE </th> <th> PROPDMG </th> <th> PROPDMGEXP </th> <th> CROPDMG </th> <th> CROPDMGEXP </th> <th> INJURIES </th> <th> FATALITIES </th>  </tr>
   <tr> <td align="right"> 191345 </td> <td> 1/19/1993 0:00:00 </td> <td> CA </td> <td> WINTER STORM </td> <td align="right"> 5.00 </td> <td> M </td> <td align="right"> 5.00 </td> <td> M </td> <td align="right"> 5.00 </td> <td align="right"> 3.00 </td> </tr>
@@ -144,27 +113,30 @@ print(xtable(storm[samplerows, cols]), type = "html")
   <tr> <td align="right"> 800635 </td> <td> 4/24/2010 0:00:00 </td> <td> MS </td> <td> TORNADO </td> <td align="right"> 90.00 </td> <td> M </td> <td align="right"> 6.00 </td> <td> M </td> <td align="right"> 35.00 </td> <td align="right"> 5.00 </td> </tr>
   <tr> <td align="right"> 800792 </td> <td> 4/24/2010 0:00:00 </td> <td> MS </td> <td> TORNADO </td> <td align="right"> 140.00 </td> <td> M </td> <td align="right"> 4.00 </td> <td> M </td> <td align="right"> 53.00 </td> <td align="right"> 4.00 </td> </tr>
    </table>
+&nbsp;  
 
 
 We saw that the damages data in the example has letter "M"  in PROPDMGEXP or CROPDMGEXP which stands for millions. So the first row tells us that a winter storm in California devasted 5 million USD each in property and crop damages. So that we can compare more properly, we will convert the damage data into more exact values. In the [documentation][id], the letters: "K", "M" and "B" represent thousand, millions and billions respectively. For our purpose we will ignore unknown and unclear damage values. 
+&nbsp;  
+&nbsp;  
 
-<font size="4.5"> _Correcting data on "damages"_</font> 
-
+<font size="4.5"> _Correcting data on "damages"_</font>   
+  
 
 ```r
-unique(storm$PROPDMGEXP)
+unique(storm$PROPDMGEXP) #check letters and other values in PRODMGEXP and CROPDMGEXP
 ```
 
  [1] "K" "M" ""  "B" "m" "+" "0" "5" "6" "?" "4" "2" "3" "h" "7" "H" "-" "1" "8"
 
 ```r
-unique(storm$PROPDMGEXP)
+unique(storm$CROPDMGEXP) 
 ```
 
- [1] "K" "M" ""  "B" "m" "+" "0" "5" "6" "?" "4" "2" "3" "h" "7" "H" "-" "1" "8"
+[1] ""  "M" "K" "m" "B" "?" "0" "k" "2"
 
 ```r
-#we will convert B, M, K and H into multipliers
+#we will convert B, M, K and also H (for hundreds) into multipliers
 storm$PROPDMGEXP2 = ifelse(storm$PROPDMGEXP == "B" | storm$PROPDMGEXP == "b", 1000000000,
                            ifelse(storm$PROPDMGEXP == "M" | storm$PROPDMGEXP == "m", 1000000,
                                   ifelse(storm$PROPDMGEXP == "K" | storm$PROPDMGEXP == "k", 1000,
@@ -189,7 +161,7 @@ storm$CROPDMGEXP2 = ifelse(storm$CROPDMGEXP == "B" | storm$CROPDMGEXP == "b", 10
 #We create new column for damage data
 storm$PROPDMG2 = storm$PROPDMG*storm$PROPDMGEXP2
 storm$CROPDMG2 = storm$CROPDMG*storm$CROPDMGEXP2
-sum(is.na(storm$PROPDMG2))
+sum(is.na(storm$PROPDMG2))#check ambigous values (i.e not with B, M, K or H)
 ```
 
 [1] 466248
@@ -206,20 +178,22 @@ storm$PROPDMG2[is.na(storm$PROPDMG2)] <- 0
 storm$CROPDMG2[is.na(storm$CROPDMG2)] <- 0
 storm$TOTALDMG = storm$PROPDMG2 + storm$CROPDMG2 
 
+#we also compute total of injuries and fatalities
 storm$TOTAL_INJUR_FATAL = storm$INJURIES + storm$FATALITIES 
 ```
+&nbsp;  
 
-<font size="4.5"> _Data subsetting_</font> 
 
-
-For our purpose, we are only interested with the data on the effects of the different natural calamities on economic and popultion health damages. Thus, we create smaller subset of the data with relevant rows and columns, we call this storm2.
-
+<font size="4.5"> _Data subsetting_</font>   
+  
+For our purpose, we are only interested with the data on the effects of the different natural calamities on economic and popultion health damages. Thus, we create smaller subset of the data with relevant rows and columns, we call this storm2.   
 
 ```r
 #we select relevant columns only
 cols2 = c("BGN_DATE" ,"STATE", "EVTYPE", "PROPDMG2",  "CROPDMG2", "TOTALDMG", "INJURIES", "FATALITIES", "TOTAL_INJUR_FATAL")
-
 storm2 = storm[, cols2]
+
+#give better names for the variables
 names(storm2)[c(4:6,9)] = c("PROPERTY_DAMAGE", "CROP_DAMAGE", "TOTAL_DAMAGE", "TOTAL_INJURIES_FATALITIES")
 
 #we remove rows with no relevant data
@@ -234,7 +208,7 @@ print(xtable(storm2[1:10,]), type = "html")
 ```
 
 <!-- html table generated in R 3.6.2 by xtable 1.8-4 package -->
-<!-- Tue Dec 29 13:26:40 2020 -->
+<!-- Tue Dec 29 15:26:45 2020 -->
 <table border=1>
 <tr> <th>  </th> <th> BGN_DATE </th> <th> STATE </th> <th> EVTYPE </th> <th> PROPERTY_DAMAGE </th> <th> CROP_DAMAGE </th> <th> TOTAL_DAMAGE </th> <th> INJURIES </th> <th> FATALITIES </th> <th> TOTAL_INJURIES_FATALITIES </th>  </tr>
   <tr> <td align="right"> 1 </td> <td align="right"> -621907200.00 </td> <td> AL </td> <td> TORNADO </td> <td align="right"> 25000.00 </td> <td align="right"> 0.00 </td> <td align="right"> 25000.00 </td> <td align="right"> 15.00 </td> <td align="right"> 0.00 </td> <td align="right"> 15.00 </td> </tr>
@@ -248,11 +222,12 @@ print(xtable(storm2[1:10,]), type = "html")
   <tr> <td align="right"> 9 </td> <td align="right"> -564364800.00 </td> <td> AL </td> <td> TORNADO </td> <td align="right"> 25000.00 </td> <td align="right"> 0.00 </td> <td align="right"> 25000.00 </td> <td align="right"> 14.00 </td> <td align="right"> 1.00 </td> <td align="right"> 15.00 </td> </tr>
   <tr> <td align="right"> 10 </td> <td align="right"> -564364800.00 </td> <td> AL </td> <td> TORNADO </td> <td align="right"> 25000.00 </td> <td align="right"> 0.00 </td> <td align="right"> 25000.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> </tr>
    </table>
+&nbsp;  
 
-<font size="4.5"> _Processing the "event types"_</font> 
 
-From the [documentation][id], we know that there are 48 event types. In our data there are more types so we group them properly into the 48. To do this we standarize the strings of the event types and we utilize regular expression in R.
-
+<font size="4.5"> _Processing the "event types"_</font>   
+   
+From the [documentation][id], we know that there are 48 event types. In our data there are more types so we group them properly into the 48. To do this we standarize the strings of the event types and we utilize regular expression in R.   
 
 ```r
 length(unique(storm2$EVTYPE)) #more than 48 event types
@@ -261,7 +236,7 @@ length(unique(storm2$EVTYPE)) #more than 48 event types
 [1] 484
 
 ```r
-head(unique(storm2$EVTYPE))
+head(unique(storm2$EVTYPE)) #check some event type values
 ```
 
 [1] "TORNADO"                   "TSTM WIND"                
@@ -301,7 +276,8 @@ tail(unique(storm2$EVTYPE2))
 [1] "lakeshoreflood"      "marinestrongwind"    "astronomicallowtide"
 [4] "densesmoke"          "marinehail"          "freezingfog"        
 
-After a bit of standardization, we can now search for key words to classify the different event types
+   
+After a bit of standardization, we can now search for key words to classify the different event types.   
 
 ```r
 #hail and marine hail, Events 1 and 2
@@ -500,10 +476,12 @@ unique(grep(".*low.*", storm2$EVTYPE2, value = TRUE))
 unique(grep(".*tid.*", storm2$EVTYPE2, value = TRUE))
 ```
 
-After we look for keywords of event types, we now group them by assign a common event type label.
+   
+After we look for keywords of event types, we now group them by assign a common event type label.   
+   
 
 ```r
-#replace
+#reassign event types into common labels
 storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% hails, "hail", storm2$EVTYPE2) #1
 storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% sleets, "sleet", storm2$EVTYPE2) #2
 storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% icestorms, "icestorm", storm2$EVTYPE2) #3
@@ -543,18 +521,23 @@ storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% stormsurgetides, "stormsurgetide", s
 storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% hurricanes, "hurricanetyphoon", storm2$EVTYPE2) #30
 storm2$EVTYPE2 = ifelse(storm2$EVTYPE2 %in% tropicaldepressions, "tropicaldepression", storm2$EVTYPE2) #31
 
+#Some event types need not to be changed (i.e. the event types are clearly stated). 
+#These were:
 #32 marine hail; 33 seiche; 34 avalanche; 35 drought; 36 tsunami; 37 dense fog; 38 freezing fog
 #39 marine high wind; 40 marine strong wind; 41 marine thunderstorm winds
 #42 dust devil; 43 dust storm; 44 debris flow; 45 dense smoke; 46 funnel cloud
 #47 volcanic ash; 48 astronomical low tide; 
 ```
+&nbsp;  
 
 
-<font size="4.5"> _Final dataset_</font> 
-
-We create the final dataset and call it "storm3". We use partial matching to consider minor typhographical errors. We first load the names of the 48 event types. 
+<font size="4.5"> _Final dataset_</font>   
+    
+We create the final dataset and call it "storm3". We use partial matching to consider minor typhographical errors. We first load the names of the 48 event types.   
+   
 
 ```r
+#load the names of the 48 events
 EVTYPE48 = c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", "Cold Wind Chill", 
              "Debris Flow", "Dense Fog", "Dense Smoke", "Drought", "Dust Devil", "Dust Storm",
              "Excessive Heat", "Extreme Cold Wind Chill", "Flash Flood", "Flood", "Frost Freeze",
@@ -565,16 +548,18 @@ EVTYPE48 = c("Astronomical Low Tide", "Avalanche", "Blizzard", "Coastal Flood", 
              "Strong Wind", "Thunderstorm Wind", "Tornado", "Tropical Depression", "Tropical Storm",
              "Tsunami", "Volcanic Ash", "Waterspout", "Wildfire", "Winter Storm", "Winter Weather")
 
-EVTYPE48B = tolower(EVTYPE48) #lowercase
-EVTYPE48B = gsub("[[:space:]]", "", EVTYPE48) #no spaces
+EVTYPE48B = tolower(EVTYPE48) #convert lowercase
+EVTYPE48B = gsub("[[:space:]]", "", EVTYPE48) #remove spaces
 
+#We search for other events with approximate match (minor typhograpical errors), string difference of at most 3
 library(stringdist)
-storm2$EVTYPE3 = amatch(storm2$EVTYPE2, EVTYPE48B, maxDist = 7) #string difference of at most 3
+storm2$EVTYPE3 = amatch(storm2$EVTYPE2, EVTYPE48B, maxDist = 7) 
 
 #use correct names of the events
 EVTYPE48 = cbind(NCODE = 1:48, EVTYPE48) 
 storm3 = merge(storm2, EVTYPE48, by.x = "EVTYPE3", by.y = "NCODE", all.x = TRUE, sort = FALSE)
 
+#percent of the event types unclassified
 sum(is.na(storm3$EVTYPE48)/254331)*100
 ```
 
@@ -583,18 +568,21 @@ sum(is.na(storm3$EVTYPE48)/254331)*100
 ```r
 #We were not able to classify less than 0.5% of the events distinctly into 48 types. For our purpose, this is good enough to draw some summaries. Majority of these are likely multiple events observed all together within the same time period. 
 
-storm3$EVTYPE2 = NULL
+storm3$EVTYPE2 = NULL #remove unnecessary variables
 storm3$EVTYPE3 = NULL
 
-names(storm3)[10] = "EVENT_TYPE"
+names(storm3)[10] = "EVENT_TYPE" #proper name
 ```
-
-    
-### __Results__
+&nbsp;  
+&nbsp;  
+&nbsp;  
+   
+### __Results__   
+   
 The objective of this study is to find out the most devastating natural calamities. We can check first the calamity that caused the most harm through the years.
 
-
 ```r
+#maximum values of damages, injuries and fatalities
 max(storm3$PROPERTY_DAMAGE)
 ```
 
@@ -629,7 +617,7 @@ print(xtable(storm3B[,c(1,2,10:13,7:9)]), type = "html")
 ```
 
 <!-- html table generated in R 3.6.2 by xtable 1.8-4 package -->
-<!-- Tue Dec 29 13:26:40 2020 -->
+<!-- Tue Dec 29 15:26:45 2020 -->
 <table border=1>
 <tr> <th>  </th> <th> BGN_DATE </th> <th> STATE </th> <th> EVENT_TYPE </th> <th> PROPERTY_DAMAGE (millions) </th> <th> CROP_DAMAGE (millions) </th> <th> TOTAL_DAMAGE (millions) </th> <th> INJURIES </th> <th> FATALITIES </th> <th> TOTAL_INJURIES_FATALITIES </th>  </tr>
   <tr> <td align="right"> 191257 </td> <td align="right"> 1136073600.00 </td> <td> CA </td> <td> Flood </td> <td align="right"> 115000.00 </td> <td align="right"> 32.50 </td> <td align="right"> 115032.50 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> </tr>
@@ -637,13 +625,16 @@ print(xtable(storm3B[,c(1,2,10:13,7:9)]), type = "html")
   <tr> <td align="right"> 23416 </td> <td align="right"> 292550400.00 </td> <td> TX </td> <td> Tornado </td> <td align="right"> 250.00 </td> <td align="right"> 0.00 </td> <td align="right"> 250.00 </td> <td align="right"> 1700.00 </td> <td align="right"> 42.00 </td> <td align="right"> 1742.00 </td> </tr>
   <tr> <td align="right"> 235646 </td> <td align="right"> 805507200.00 </td> <td> IL </td> <td> Heat </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 0.00 </td> <td align="right"> 583.00 </td> <td align="right"> 583.00 </td> </tr>
    </table>
+&nbsp;  
 
 
 In terms of damages, the flood in California on 2006 caused the greatest damage at about 115 billion USD while the ice storm in Mississippi on 1994 caused the most crop damage at about 5 billion USD. The tornado in Texas on 1979 lead to most injuries, that is, 1700 people. More devasting is the heat wave in Illinois on 1995 which claimed 583 lives.
-
-We now check the cumulative effects of these natural calamities. We look at first economic damages.
+&nbsp;  
+   
+We now check the cumulative effects of these natural calamities. We look at first economic damages.   
 
 ```r
+#summarize by total
 cumul_propdmg = aggregate(PROPERTY_DAMAGE ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
 cumul_cropdmg = aggregate(CROP_DAMAGE ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
 cumul_totaldmg = aggregate(TOTAL_DAMAGE ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
@@ -656,6 +647,7 @@ cumul_dmg2 = cumul_dmg[order(cumul_dmg$TOTAL_DAMAGE, decreasing = TRUE)[1:10],1:
 library(tidyr)
 cumul_dmg2 = gather(cumul_dmg2, DAMAGE_TYPE, DAMAGE, PROPERTY_DAMAGE:CROP_DAMAGE, factor_key=TRUE)
 
+#plot for comparison
 library(ggplot2)
 p1 = ggplot(data = cumul_dmg2, aes(x = EVENT_TYPE, y = DAMAGE/1000000, fill = DAMAGE_TYPE)) + 
     geom_bar(stat = 'identity') + coord_flip()
@@ -669,14 +661,16 @@ p1 = p1 + theme(legend.position = "bottom", legend.title = element_text(size = 8
 p1
 ```
 
-<img src="RepRes_files/figure-html/unnamed-chunk-13-1.png" width="100%" />
+<img src="RepRes_files/figure-html/unnamed-chunk-11-1.png" width="100%" />
 
-
+   
 We see that __floods negatively caused the greatest economic consequence overall at about 145 billion USD__. This is followed by Hurricane or typhoon (~ 85 billion USD), tornado (almost 57 billion USD), storm suge tides (almost 48 billion USD) and flash floods (~22 billion USD). In terms of crop damage, drought contributed the most at almost 14 billion USD followed by flash floods (more than 6 billion USD) and floods (~ 5.8 billion USD).
-
-Next, we look at injuries and fatalities.
+&nbsp;  
+   
+Next, we look at injuries and fatalities.   
 
 ```r
+#summarize by total
 cumul_injury = aggregate(INJURIES ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
 cumul_fatality = aggregate(FATALITIES ~ EVENT_TYPE, data = storm3, function(x) sum(x, na.rm = TRUE))
 
@@ -684,6 +678,7 @@ cumul_injury2 = cumul_injury[order(cumul_injury$INJURIES, decreasing = TRUE)[1:1
 cumul_fatality2 = cumul_fatality[order(cumul_fatality$FATALITIES, decreasing = TRUE)[1:10],] #top ten only
 
 
+#plots for comparison
 p2 = ggplot(data = cumul_injury2, aes(x = EVENT_TYPE, y = INJURIES)) + 
     geom_bar(stat = 'identity') + coord_flip()
 p2 = p2 + labs(title = "Top 10 natural calamities that caused the most injuries in the US", 
@@ -704,6 +699,10 @@ p3
 
 <img src="RepRes_files/figure-html/figures-side-1.png" width="90%" /><img src="RepRes_files/figure-html/figures-side-2.png" width="90%" />
 
-__In general, tornado is the most harmful storm event to the US population's health__. It recorded more than 91 thousand injuries since 1950 up t0 2011. This is followed by thunderstorm winds (9509), floods (7910), excessive heat (6730) and lightning (5231). Similarly tornadoes killed a lot of people, that is, 5638. This is followed by heat waves (3132 total for heat and excessive heat), flash floods (1037) and lightning (818).
-
+   
+__In general, tornado is the most harmful storm event to the US population's health__. It recorded more than 91 thousand injuries since 1950 up to 2011. This is followed by thunderstorm winds (9509), floods (7910), excessive heat (6730) and lightning (5231). Similarly tornadoes killed a lot of people, that is, 5638. This is followed by heat waves (3132 total for heat and excessive heat), flash floods (1037) and lightning (818).
+&nbsp;  
+&nbsp;  
+&nbsp;  
+    
 In summary, floods, hurricanes or typhoons and tornadoes are the most damaging storm events in terms of econmomic consequence. On the other hand, tornadoes, heat waves and floods (both floods and flashfloods) are the most harmul storm events for the US population's health. Floods and tornadoes therefore, pose the most threat to the US and risk management of these events should be prioritize, among others.   
